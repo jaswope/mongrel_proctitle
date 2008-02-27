@@ -12,7 +12,7 @@ CLEAN.include [ "pkg", "lib/*.bundle", "*.gem", ".config", "**/*.log" ]
 desc "Build package"
 task :default => [:package]
 
-version = "1.2.1"
+version = "1.2.2"
 name = "mongrel_proctitle"
 
 spec =

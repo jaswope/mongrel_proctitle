@@ -45,7 +45,8 @@ interval = 0.25
 # the fields to show in our display (see ps -o)
 fields = "pid,command"
 
-# parse arguments
+# parse arguments.
+# TODO: use getoptlong
 argv = ARGV.map { |a| a.split('=', 2) }.flatten
 while argv.any?
   arg = argv.shift
@@ -67,12 +68,15 @@ def process_display(fields, interval)
   cols = terminal_columns
   processes =
     `ps axww -o #{fields}`.grep(/mongrel_rails/).map do |line|
-      line.sub! /\s+SHELL=.*$/, ''   # weird MacOS X issue
+      line.strip!
+      line.sub! /\s+SHELL=.*$/, ''                  # weird MacOS X issue
+      line.sub! /(?:ruby\d*: )?mongrel_rails /, ''  # remove $0 prefix
+      line.sub! /\(ruby\d*\)/, ''                   # remove (ruby) suffix
       line[0,cols].chomp
     end
   output = [
     (' ' * (cols - now.length)) + now + "\r" +
-    "Mongrel Monitor (delay: #{interval})",
+    "Mongrel Top (delay: #{interval})",
     "",
     processes,
     "",
