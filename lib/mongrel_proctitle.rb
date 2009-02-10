@@ -9,6 +9,7 @@ module Mongrel
       @port = port
       @mutex = Mutex.new
       @titles = []
+      @request_threads = []
       @queue_length = 0
       @request_count = 0
     end
@@ -40,11 +41,26 @@ module Mongrel
         mutex.synchronize do
           @queue_length -= 1
           @request_count += 1
-          self.title = titles.pop || "xxx"
+          @request_threads.delete(Thread.current)
+          set_request_list_title
         end
       end
     end
     
+    def set_request_list_title(excluding = nil)
+      if @request_threads.empty?
+        set_idle
+      else
+        if defined?(Rails)
+          # find the first awake/critical thread and put it in the front
+          running_thread = @request_threads.detect {|thread| thread.status == "run" && excluding != thread }
+          @request_threads.unshift(@request_threads.delete(running_thread)) if running_thread
+          # this isn't exact, but it works for most situations
+        end
+        self.title = "handling #{@request_threads.collect {|t| t[:request_str]}.join(', ')}"
+      end
+    end
+
     # Reports process as being idle.
     def set_idle
       self.title = "idle"
@@ -62,7 +78,9 @@ module Mongrel
       method = params['REQUEST_METHOD']
       path = params['REQUEST_PATH']
       path = "#{path[0, 60]}..." if path.length > 60
-      self.title = "handling #{address}: #{method} #{path}"
+      Thread.current[:request_str] = "#{address}: #{method} #{path}"
+      @request_threads.push(Thread.current)
+      set_request_list_title(Thread.current)
     end
     
     # Returns current title
