@@ -5,7 +5,7 @@ Gem::Specification.new do |s|
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
 
   s.name = 'mongrel_proctitle'
-  s.version = '1.2.11'
+  s.version = '1.3'
   s.date = '2009-02-23'
 
   s.platform = Gem::Platform::RUBY
