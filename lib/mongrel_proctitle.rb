@@ -1,3 +1,5 @@
+require 'mongrel'
+
 module Mongrel
 
   # Mongrel process title modification.
