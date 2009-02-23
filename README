@@ -29,9 +29,6 @@ http://purefiction.net/mongrel_proctitle/
 The main difference is that the GemPlugin will automatically be loaded by all
 mongrels without additional code changes or configuration.
 
-This is a fork of rtomayko's fork of mongrel_proctitle that displays the current request
-instead of the most recent received request, as well a list of the request queue.
-
 Monitoring Mongrels
 -------------------
 

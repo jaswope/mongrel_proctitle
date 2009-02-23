@@ -12,30 +12,11 @@ CLEAN.include [ "pkg", "lib/*.bundle", "*.gem", ".config", "**/*.log" ]
 desc "Build package"
 task :default => [:package]
 
-version = "1.2.5"
-name = "mongrel_proctitle"
-
-spec =
-  Gem::Specification.new do |s|
-    s.name = name
-    s.version = version
-    s.platform = Gem::Platform::RUBY
-    s.summary = "The mongrel_proctitle GemPlugin"
-    s.description = s.summary
-    s.author = "Ryan Tomayko"
-    s.email = "rtomayko@gmail.com"
-    s.homepage = "http://github.com/rtomayko/mongrel_proctitle"
-    s.add_dependency('mongrel', '>= 1.1')
-    s.add_dependency('gem_plugin', '>= 0.2.3')
-    s.has_rdoc = true
-    s.extra_rdoc_files = [ "README" ]
-    s.bindir = "bin"
-    s.executables = [ "mongrel_top" ]
-    s.files = %w(LICENSE README Rakefile) +
-      Dir.glob("{bin,doc/rdoc,test,lib}/**/*")
-    s.require_path = "lib"
-    s.rubyforge_project = "orphans"
-  end
+# Load gemspec like github to surface SAFE issues early
+require 'rubygems/specification'
+data = File.read('mongrel_proctitle.gemspec')
+spec = nil
+Thread.new { spec = eval("$SAFE = 3\n#{data}") }.join
 
 Rake::GemPackageTask.new(spec) do |p|
   p.gem_spec = spec
@@ -51,10 +32,11 @@ task :uninstall => [:clean] do
   sh %{gem uninstall #{name}}
 end
 
-desc 'Publish gems and other distributables to tomayko.com'
+desc 'Publish gem and tarball to rubyforge'
 task :release => [:package] do
+  pkg = "pkg/#{spec.name}-#{spec.version}"
   sh <<-end
-    ssh tomayko.com 'mkdir -p /dist/#{name}' && \
-    rsync -azP pkg/#{name}-#{version}.* tomayko.com:/dist/#{name}/
+    rubyforge add_release wink #{spec.name} #{spec.version} #{pkg}.gem &&
+    rubyforge add_file    wink #{spec.name} #{spec.version} #{pkg}.tar.gz
   end
 end
