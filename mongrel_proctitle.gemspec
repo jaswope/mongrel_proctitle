@@ -5,8 +5,8 @@ Gem::Specification.new do |s|
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
 
   s.name = 'mongrel_proctitle'
-  s.version = '1.3'
-  s.date = '2009-02-23'
+  s.version = '1.4'
+  s.date = '2009-03-01'
 
   s.platform = Gem::Platform::RUBY
   s.summary = "The mongrel_proctitle GemPlugin"
@@ -28,6 +28,7 @@ Gem::Specification.new do |s|
     Rakefile
     mongrel_proctitle.gemspec
     lib/mongrel_proctitle.rb
+    lib/mongrel_proctitle/init.rb
     bin/mongrel_top
   ]
 
