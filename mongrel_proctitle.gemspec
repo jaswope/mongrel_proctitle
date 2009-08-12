@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = "mongrel_proctitle"
-  s.version = "1.4.1.2"
+  s.version = "1.4.1.4"
   s.platform = Gem::Platform::RUBY
   s.summary = "The mongrel_proctitle Gem"
   s.description = s.summary

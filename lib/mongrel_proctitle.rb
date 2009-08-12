@@ -31,6 +31,11 @@ module Mongrel
     def revision
       @revision ||= get_app_revision if self.respond_to?(:get_app_revision)
     end
+    
+    def reset
+      @max_queue_length = 0
+      update_process_title
+    end
 
     def request(&block)
       titles, mutex = @titles, @mutex
@@ -128,6 +133,7 @@ module Mongrel
     def run_with_proctitle(*args)
       @titler = Proctitler.new(self.port, File.basename($0))
       @titler.set_idle
+      trap("CONT") {@titler.reset}
       run_without_proctitle
     end
     alias_method :run_without_proctitle, :run
