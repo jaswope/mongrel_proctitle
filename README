@@ -7,15 +7,17 @@ status using "ps".
 
 For example:
 
-  mongrel_rails [10010/2/358]: handling 127.0.0.1: HEAD /feed/cal/global/91/6de4, GET /feed/index
-                 |     | |     |        |          |
-                 |     | |     |        |          The current req (method / path)
-                 |     | |     |        |
-                 |     | |     |        The client IP
-                 |     | |     |
-                 |     | |     What it's doing
-                 |     | |     
-                 |     | Requests processed during server lifetime
+  mongrel_rails [10010/2/5/358]: handling 127.0.0.1: HEAD /feed/cal/global/91/6de4, GET /feed/index
+                 |     | | |     |        |          |
+                 |     | | |     |        |          The current req (method / path)
+                 |     | | |     |        |
+                 |     | | |     |        The client IP
+                 |     | | |     |
+                 |     | | |     What it's doing
+                 |     | | |     
+                 |     | | Requests processed during server lifetime
+                 |     | |
+                 |     | Maximum queued requests in the server lifetime
                  |     |
                  |     Requests currently queued/being processed concurrently
                  |

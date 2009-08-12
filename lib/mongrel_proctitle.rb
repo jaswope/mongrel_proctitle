@@ -13,6 +13,7 @@ module Mongrel
       @titles = []
       @request_threads = []
       @queue_length = 0
+      @max_queue_length = 0
       @request_count = 0
     end
 
@@ -35,6 +36,7 @@ module Mongrel
       titles, mutex = @titles, @mutex
       mutex.synchronize do
         @queue_length += 1
+        @max_queue_length = @queue_length if @queue_length > @max_queue_length
         titles.push(self.title)
       end
       begin
@@ -102,6 +104,7 @@ module Mongrel
       title << (@port ? "#{@port}" : "?")
       title << (revision ? "/r#{revision}" : "")
       title << "/#{@queue_length}"
+      title << "/#{@max_queue_length}"
       title << "/#{@request_count}"
       title << "]: #{@title}"
       $0 = title
