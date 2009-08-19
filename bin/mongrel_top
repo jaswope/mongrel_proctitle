@@ -1,7 +1,60 @@
 #!/usr/bin/env ruby
+require "curses"
+$DEBUG = true
+OFFSET = 1
 
 $last_update = nil
-$clear_char = `tput clear`
+$window = nil
+$processes = []
+$bold_line = -1 
+$act_on_all = false
+
+class MongrelProcess
+  @@mongrel_rails_regex = /(\d+)\W+\[(\d+)\/(\d+)\/(\d+)\/(\d+)\]:\W+(.*)$/
+  @@array_names = [:pid,:port,:queue,:max_queue,:connections,:status]
+  @command_string = ""
+  
+  def initialize(command_string)
+    @command_string = command_string
+  end
+  
+  def method_missing(sym, *args, &block)
+    @@mongrel_rails_regex.match(@command_string)[@@array_names.index(sym) + 1] if @@mongrel_rails_regex.match(@command_string)
+  end
+  
+  def pid
+    @@mongrel_rails_regex.match(@command_string)[1].to_i if @@mongrel_rails_regex.match(@command_string)
+  end
+  
+  def to_s
+    "#{pid}\t#{port}\t#{queue}\t#{max_queue}\t#{connections}\t#{status}"
+  end
+  
+  def to_a
+    [pid,port,queue,max_queue,connections,status]
+  end
+  
+  def reload
+    Process.kill("HUP", pid)
+  end
+  
+  def restart
+    Process.kill("USR2", pid)
+  end
+  
+  def reset_max_counts
+    Process.kill("CONT", pid)
+  end
+  
+  def stop
+    Process.kill("TERM", pid)
+  end
+  
+  def kill
+    Process.kill("INT", pid)
+  end
+  
+end
 
 def usage
   puts "usage: #{File.basename($0)} [-s delay] [-o fields]"
@@ -14,24 +67,33 @@ end
 
 # clear the terminal
 def clear_screen
-  STDOUT.write($clear_char)
+  Curses.clear
 end
+
 
 # clear the terminal and then write output.
 def update_screen(output)
+  cols = terminal_columns
   if output != $last_update
     clear_screen
-    puts(output)
+    $last_update = output
+    output.each_with_index do |line, idx|
+      $window.setpos(idx, 0)
+      Curses.attron(line.last)
+      $window.addstr(' ' * cols) if line.last != 0
+      line.each_with_index do |string, col|
+        next if col == line.length - 1
+        $window.setpos(idx, col*8) 
+        $window.addstr(string.to_s[0..(cols-col*8)])
+      end
+      Curses.attroff(line.last)
+    end
+    $window.refresh
   end
 end
 
 def terminal_columns
-  @terminal_columns ||=
-    if (cols = `tput cols`) == ""
-      80
-    else
-      cols.to_i
-    end
+  $window.maxx
 end
 
 trap("INT") {
@@ -53,8 +115,6 @@ while argv.any?
   case arg
   when /^-(s|-delay)$/
     interval = argv.shift.to_f
-  when /^-(o|-fields)$/
-    fields = argv.shift
   when /^-(h|-help)$/
     usage and exit(0)
   else
@@ -62,31 +122,97 @@ while argv.any?
   end
 end
 
-# Builds the process output display.
-def process_display(fields, interval)
-  now = Time.now.strftime('%a %b %d %H:%M:%S %Y')
-  cols = terminal_columns
-  processes =
-    `ps axww -o #{fields}`.grep(/mongrel_rails/).map do |line|
+def get_processes(refresh = false)
+  unless refresh
+    $processes
+  else
+  $processes = `ps axwwwwww -o pid,command`.grep(/mongrel_rails/).map do |line|
       line.strip!
       line.sub! /\s+SHELL=.*$/, ''                  # weird MacOS X issue
       line.sub! /(?:ruby\d*: )?mongrel_rails /, ''  # remove $0 prefix
       line.sub! /\(ruby\d*\)/, ''                   # remove (ruby) suffix
-      line[0,cols].chomp
+      line = MongrelProcess.new(line)
     end
-  output = [
-    (' ' * (cols - now.length)) + now + "\r" +
-    "Mongrel Top (delay: #{interval})",
-    "",
-    processes,
-    "",
-    "#{processes.length} process(es)"
-  ]
-  output.flatten.join("\n")
+  end
 end
 
-while true
-  output = process_display(fields, interval)
-  update_screen(output)
-  sleep(interval)
+# Builds the process output display.
+def process_display(fields, interval)
+  now = Time.now.strftime('%a %b %d %H:%M:%S %Y')
+  cols = terminal_columns
+  processes = get_processes
+  if $bold_line > processes.length
+    $bold_line = processes.length == 0 ? -1 : processes.length
+  end
+  output = [
+    [(' ' * (cols - now.length)) + now, 0],
+    ["Mongrel Top (delay: #{interval})",0],
+    ["",0],
+    ["pid\tport\tqueue\tmaxq\tconns\tstatus",0]
+  ]
+  processes.each_with_index do |p,idx|
+    line_attrs = 0
+    line_attrs += Curses::A_REVERSE if $bold_line >= 0 && $bold_line == idx
+    line_attrs += Curses::A_BOLD if $act_on_all
+    output << (p.to_a << line_attrs)
+  end
+  output += [
+   ["",0],
+    ["#{processes.length} process(es) ([q]uit,[d]own,[u]p,[r]eset,[b]ounce,[k]ill,[a]ll)",0],
+    ["",0]
+  ]
+  output[output.length - 1] = [processes[$bold_line].status,0] if $bold_line >= 0 && $bold_line < processes.length
+  output
+end
+
+$window = Curses.init_screen
+Curses.cbreak
+Curses.noecho
+
+def perform_action(sym)
+  if $act_on_all
+    get_processes.each {|p| p.send(sym)}
+  else
+    get_processes[$bold_line].send(sym)
+  end
+end
+
+update_thread = Thread.new do
+  loop do
+    get_processes(true)
+    sleep(interval)
+  end
+end
+
+screen_thread = Thread.new do
+  loop do
+    output = process_display(fields, interval)
+    update_screen(output)
+    sleep(0.05)
+  end
+end
+
+
+loop do
+  input_char = Curses.getch
+  if input_char < 255
+    case input_char.chr
+    when 'd'
+      $bold_line += 1 if $bold_line < get_processes.length - 1
+    when 'u'
+      $bold_line -= 1 if $bold_line > -1
+    when 'r' #reset
+      perform_action(:reset_max_counts)
+    when 'b' #bounce
+      perform_action(:restart)
+    when 'a'
+      $act_on_all = !$act_on_all
+    when 'k' #kill
+      perform_action(:stop)
+    when 'q'
+      Thread.kill(update_thread)
+      Curses.nocbreak
+      break
+    end
+  end
 end
